@@ -1,0 +1,433 @@
+package app.model.preset.process;
+/** 
+
+* @author  Donghao.F 
+
+* @date 2022 Jul 14 14:24:00 
+
+* 
+
+*/
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Map.Entry;
+
+import com.google.protobuf.ByteString;
+import com.google.protobuf.GeneratedMessage;
+import com.google.protobuf.Message;
+import com.google.protobuf.Descriptors.FieldDescriptor;
+import com.hazelcast.map.EntryBackupProcessor;
+import com.hazelcast.map.EntryProcessor;
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.DataSerializable;
+
+import message.ServiceGridModel.GridModelAcline;
+import message.ServiceGridModel.GridModelAclineend;
+import message.ServiceGridModel.GridModelBreaker;
+import message.ServiceGridModel.GridModelCp;
+import message.ServiceGridModel.GridModelCvt;
+import message.ServiceGridModel.GridModelDis;
+import message.ServiceGridModel.GridModelElcBus;
+import message.ServiceGridModel.GridModelLoad;
+import message.ServiceGridModel.GridModelResponse;
+import message.ServiceGridModel.GridModelScp;
+import message.ServiceGridModel.GridModelTransfm;
+import message.ServiceGridModel.GridModelTransfmwd;
+import message.ServiceGridModel.GridModelUnit;
+import message.ServiceGridModel.RTKEY;
+import message.ServiceModelMeas.ModelMeasResponse;
+import message.ServiceModelMeas.RTMeas.Builder;
+import message.ServicePointValue.PointValue;
+import message.ServicePointValue.PointValueList;
+import message.ServiceRtnetCase.NasAcDotResult;
+import message.ServiceRtnetCase.NasBreakResult;
+import message.ServiceRtnetCase.NasBusResult;
+import message.ServiceRtnetCase.NasCompensatorPResult;
+import message.ServiceRtnetCase.NasCompensatorSResult;
+import message.ServiceRtnetCase.NasConverterResult;
+import message.ServiceRtnetCase.NasDcBreakResult;
+import message.ServiceRtnetCase.NasDcDisconnectorResult;
+import message.ServiceRtnetCase.NasDisconnectorResult;
+import message.ServiceRtnetCase.NasLoadResult;
+import message.ServiceRtnetCase.NasTrwdResult;
+import message.ServiceRtnetCase.NasUnitResult;
+import message.ServiceRtnetCase.RtnetCaseResponse;
+import warpper.MessageWarpper;
+
+public class ModelPointValueEntryProcess implements EntryProcessor<String, MessageWarpper>, DataSerializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 5651575269768238613L;
+	PointValueList.Builder builderList;
+
+	public ModelPointValueEntryProcess() {
+
+	}
+
+	public ModelPointValueEntryProcess(PointValueList PointValueList) {
+		this.builderList = PointValueList.toBuilder();
+	}
+
+	@Override
+	public EntryBackupProcessor<String, MessageWarpper> getBackupProcessor() {
+		return null;
+	}
+
+	@Override
+	public Object process(Entry<String, MessageWarpper> entry) {
+		MessageWarpper warpper = entry.getValue();
+		if (warpper != null) {
+			Message.Builder response = warpper.getBuilder();
+			if (response instanceof GridModelResponse.Builder) {
+				mapModelValue(warpper);
+			} else if (response instanceof ModelMeasResponse.Builder) {
+				mapPreValue(warpper);
+			} else if (response instanceof RtnetCaseResponse.Builder) {
+				mapResultValue(warpper);
+			}
+			return builderList.build();
+		}else {
+			return builderList.build();
+		}
+	}
+
+	final static ByteString p = ByteString.copyFrom("p".getBytes());
+	final static ByteString q = ByteString.copyFrom("q".getBytes());
+	final static ByteString point = ByteString.copyFrom("point".getBytes());
+	final static ByteString pi = ByteString.copyFrom("pi".getBytes());
+	final static ByteString pj = ByteString.copyFrom("pj".getBytes());
+	final static ByteString qi = ByteString.copyFrom("qi".getBytes());
+	final static ByteString qj = ByteString.copyFrom("qj".getBytes());
+	final static ByteString pac = ByteString.copyFrom("pac".getBytes());
+	final static ByteString qac = ByteString.copyFrom("qac".getBytes());
+	
+	final static ByteString pdc = ByteString.copyFrom("pdc".getBytes());
+	final static ByteString v = ByteString.copyFrom("v".getBytes());
+	final static ByteString tpcolor = ByteString.copyFrom("tpcolor".getBytes());
+	final static ByteString tap = ByteString.copyFrom("tap".getBytes());
+	final static ByteString name = ByteString.copyFrom("name".getBytes());
+	final static ByteString voltage_type=ByteString.copyFrom("voltage_type".getBytes());
+	
+	
+	private void mapResultValue(MessageWarpper warpper) {
+		builderList.getValueBuilderList().forEach(value -> {
+			long clo_id = value.getId().getId2() % 10000;
+			long id = value.getId().getId1() + value.getId().getId2()-clo_id;
+			Message.Builder base = warpper.getDeviceModelMap().get(id);
+			if(base == null) {
+				base = warpper.getEqLoadModelMap().get(id);
+			}
+			if (base != null) {
+				Message obj = base.build();
+				if (value.getName().equals(p)) {
+					value.setValue(getByteString(getP(obj)));
+				} else if (value.getName().equals(q)) {
+					value.setValue(getByteString(getQ(obj)));
+				} else if (value.getName().equals(tpcolor)) {
+					int tpcolor = getTpColor(obj);
+					if (tpcolor < 0) {
+						tpcolor = 0;
+					}
+					value.setValue(getByteString(tpcolor));
+				} else if (value.getName().equals(v)) {
+					value.setValue(getByteString(getV(obj)));
+				} else if (value.getName().equals(point)) {
+					value.setValue(getByteString(getPoint(obj)));
+				} else if (value.getName().equals(pi)) {
+					if (obj instanceof NasCompensatorSResult) {
+						value.setValue(getByteString(((NasCompensatorSResult) obj).getPi()));
+					}
+				} else if (value.getName().equals(pj)) {
+					if (obj instanceof NasCompensatorSResult) {
+						value.setValue(getByteString(((NasCompensatorSResult) obj).getPj()));
+					}
+				} else if (value.getName().equals(qj)) {
+					if (obj instanceof NasCompensatorSResult) {
+						value.setValue(getByteString(((NasCompensatorSResult) obj).getQj()));
+					}
+				} else if (value.getName().equals(qi)) {
+					if (obj instanceof NasCompensatorSResult) {
+						value.setValue(getByteString(((NasCompensatorSResult) obj).getQi()));
+					}
+				} else if (value.getName().equals(pac)) {
+					if (obj instanceof NasConverterResult) {
+						value.setValue(getByteString(((NasConverterResult) obj).getP()));
+					} else if (obj instanceof NasLoadResult) {
+						value.setValue(getByteString(((NasLoadResult) obj).getP()));
+					}
+				} else if (value.getName().equals(pdc)) {
+					if (obj instanceof NasConverterResult) {
+						value.setValue(getByteString(((NasConverterResult) obj).getDcp()));
+					} else if (obj instanceof NasLoadResult) {
+						value.setValue(getByteString(((NasLoadResult) obj).getP()));
+					}
+				} 
+				else if (value.getName().equals(qac)) {
+					if (obj instanceof NasConverterResult) {
+						value.setValue(getByteString(((NasConverterResult) obj).getQ()));
+					} else if (obj instanceof NasLoadResult) {
+						value.setValue(getByteString(((NasLoadResult) obj).getQ()));
+					}
+				}else if (value.getName().equals(tap)) {
+					if (obj instanceof NasConverterResult) {
+						value.setValue(getByteString(((NasConverterResult) obj).getTap()));
+					} else if (obj instanceof NasTrwdResult) {
+						value.setValue(getByteString(((NasTrwdResult) obj).getTap()));
+					}
+				}
+			}
+		});
+	}
+
+	private float getP(Message obj) {
+		if (obj instanceof NasLoadResult) {
+			return ((NasLoadResult) obj).getP();
+		} else if (obj instanceof NasAcDotResult) {
+			return ((NasAcDotResult) obj).getP();
+		} else if (obj instanceof NasTrwdResult) {
+			return ((NasTrwdResult) obj).getP();
+		} else if (obj instanceof NasUnitResult) {
+			return ((NasUnitResult) obj).getP();
+		} else if (obj instanceof NasConverterResult) {
+			return ((NasConverterResult) obj).getP();
+		}
+		return 0;
+	}
+
+	private float getQ(Message obj) {
+		if (obj instanceof NasLoadResult) {
+			return ((NasLoadResult) obj).getQ();
+		} else if (obj instanceof NasAcDotResult) {
+			return ((NasAcDotResult) obj).getQ();
+		} else if (obj instanceof NasTrwdResult) {
+			return ((NasTrwdResult) obj).getQ();
+		} else if (obj instanceof NasUnitResult) {
+			return ((NasUnitResult) obj).getQ();
+		} else if (obj instanceof NasConverterResult) {
+			return ((NasConverterResult) obj).getQ();
+		}else if (obj instanceof NasCompensatorPResult) {
+			return ((NasCompensatorPResult) obj).getQ();
+		}
+		return 0;
+	}
+
+	private float getV(Message obj) {
+		if (obj instanceof NasBusResult) {
+			return ((NasBusResult) obj).getV();
+		} else if (obj instanceof NasUnitResult) {
+			return ((NasUnitResult) obj).getVe();
+		}else if (obj instanceof NasConverterResult) {
+			return ((NasConverterResult) obj).getV();
+		}
+		return 0;
+	}
+
+	private int getPoint(Message obj) {
+		if (obj instanceof NasDisconnectorResult) {
+			return ((NasDisconnectorResult) obj).getStats();
+		} else if (obj instanceof NasBreakResult) {
+			return ((NasBreakResult) obj).getStats();
+		} else if (obj instanceof NasDcDisconnectorResult) {
+			return ((NasDcDisconnectorResult) obj).getStats();
+		} else if (obj instanceof NasDcBreakResult) {
+			return ((NasDcBreakResult) obj).getStats();
+		}
+		return 0;
+	}
+
+	private int getTpColor(Message obj) {
+		if (obj instanceof NasLoadResult) {
+			return ((NasLoadResult) obj).getIsland();
+		} else if (obj instanceof NasAcDotResult) {
+			return ((NasAcDotResult) obj).getIsland();
+		} else if (obj instanceof NasBusResult) {
+			return ((NasBusResult) obj).getIsland();
+		} else if (obj instanceof NasTrwdResult) {
+			return ((NasTrwdResult) obj).getIsland();
+		} else if (obj instanceof NasUnitResult) {
+			return ((NasUnitResult) obj).getIsland();
+		} else if (obj instanceof NasCompensatorPResult) {
+			return ((NasCompensatorPResult) obj).getIsland();
+		} else if (obj instanceof NasCompensatorSResult) {
+			if (((NasCompensatorSResult) obj).getIsland1() != ((NasCompensatorSResult) obj).getIsland2()) {
+				return 0;
+			}
+			return ((NasCompensatorSResult) obj).getIsland1();
+		} else if (obj instanceof NasDisconnectorResult) {
+			if (((NasDisconnectorResult) obj).getIsland1() != ((NasDisconnectorResult) obj).getIsland2()) {
+				return 0;
+			}
+			return ((NasDisconnectorResult) obj).getIsland1();
+		} else if (obj instanceof NasBreakResult) {
+			if (((NasBreakResult) obj).getIsland1() != ((NasBreakResult) obj).getIsland2()) {
+				return 0;
+			}
+			return ((NasBreakResult) obj).getIsland1();
+		} else if (obj instanceof NasConverterResult) {
+			return ((NasConverterResult) obj).getIsland();
+		} else if (obj instanceof NasDcDisconnectorResult) {
+			if (((NasDcDisconnectorResult) obj).getIsland1() != ((NasDcDisconnectorResult) obj).getIsland2()) {
+				return 0;
+			}
+			return ((NasDcDisconnectorResult) obj).getIsland1();
+		} else if (obj instanceof NasDcBreakResult) {
+			if (((NasDcBreakResult) obj).getIsland1() != ((NasDcBreakResult) obj).getIsland2()) {
+				return 0;
+			}
+			return ((NasDcBreakResult) obj).getIsland1();
+		}
+		return 0;
+	}
+
+	private void mapPreValue(MessageWarpper warpper) {
+		builderList.getValueBuilderList().forEach(value -> {
+			long clo_id = value.getId().getId2() % 10000;
+			long id = value.getId().getId1() + value.getId().getId2()-clo_id;
+			Message.Builder base = warpper.getDeviceModelMap().get(id);
+			if (base == null) {
+				base =  warpper.getEqLoadModelMap().get(id);
+			}
+			if (base != null) {
+				Builder obj = (Builder) base;
+				int size = obj.getAttributeNameCount();
+				for (int i = 0; i < size; i++) {
+					if (value.getName().equals(obj.getAttributeName(i))) {
+						if (obj.getValue(i).getValueType() == 1) {
+							value.setValue(getByteString(obj.getValue(i).getFloatValue()));
+						} else {
+							value.setValue(getByteString(obj.getValue(i).getIntValue()));
+						}
+						break;
+					}
+
+				}
+			}
+		});
+
+	}
+
+	ByteString getByteString(Object obj) {
+		return ByteString.copyFrom(String.valueOf(obj).getBytes());
+	}
+	
+	private void mapModelValue(MessageWarpper warpper) {
+		builderList.getValueBuilderList().forEach(value -> {
+			long clo_id = value.getId().getId2() % 10000;
+			long id = value.getId().getId1() + value.getId().getId2() - clo_id;
+			Message.Builder base = warpper.getDeviceModelMap().get(id);
+			if (base == null) {
+				base = warpper.getEqLoadModelMap().get(id);
+			}
+			if (base != null) {
+				Message obj = base.build();
+				if (name.equals(value.getName())) {
+					value.setValue(getName(obj));
+				} else if (voltage_type.equals(value.getName())) {
+					value.setValue(getByteString(getVoltage(obj, warpper.getDeviceModelMap())));
+				} else {
+					try {
+						ByteString dataValue = getData(obj, value.getName().toString("gbk"));
+						if (dataValue != null) {
+							value.setValue(dataValue);
+						}
+					} catch (UnsupportedEncodingException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		});
+	}
+
+	
+	private ByteString getData(Message obj,
+			String attributeName) throws UnsupportedEncodingException {
+		if (obj != null) {
+			Optional<Entry<FieldDescriptor, Object>> option = obj.getAllFields().entrySet().stream()
+					.filter(entry -> entry.getKey().getName().equals(attributeName)).findAny();
+			if (option.isPresent()) {
+				Entry<FieldDescriptor, Object> fieldEntry = option.get();
+				if (fieldEntry.getKey().getType() == FieldDescriptor.Type.BYTES) {
+					return (ByteString) fieldEntry.getValue();
+				} else {
+					return getByteString(fieldEntry.getValue());
+				}
+
+			}
+		}
+		return null;
+	}
+	
+	private ByteString getName(Message obj) {
+		if (obj instanceof GridModelLoad) {
+			return ((GridModelLoad) obj).getName();
+		} else if (obj instanceof GridModelAclineend) {
+			return ((GridModelAclineend) obj).getName();
+		} else if (obj instanceof GridModelElcBus) {
+			return ((GridModelElcBus) obj).getName();
+		} else if (obj instanceof GridModelTransfmwd) {
+			return ((GridModelTransfmwd) obj).getName();
+		} else if (obj instanceof GridModelUnit) {
+			return ((GridModelUnit) obj).getName();
+		} else if (obj instanceof GridModelScp) {
+			return ((GridModelScp) obj).getName();
+		} else if (obj instanceof GridModelCp) {
+			return ((GridModelCp) obj).getName();
+		} else if (obj instanceof GridModelDis) {
+			return ((GridModelDis) obj).getName();
+		} else if (obj instanceof GridModelBreaker) {
+			return ((GridModelBreaker) obj).getName();
+		} else if (obj instanceof GridModelCvt) {
+			return ((GridModelCvt) obj).getName();
+		} else if (obj instanceof GridModelTransfm) {
+			return ((GridModelTransfm) obj).getName();
+		}
+		return null;
+	}
+
+	private Integer getVoltage(Message obj, Map<Long, Message.Builder> map) {
+		if (obj instanceof GridModelLoad) {
+			return ((GridModelLoad) obj).getVolType();
+		} else if (obj instanceof GridModelAclineend) {
+			RTKEY lineId = ((GridModelAclineend) obj).getAclnsegId();
+			Message.Builder base = map.get(lineId.getId1() + lineId.getId2());
+			if (base != null) {
+				GridModelAcline line = ((GridModelAcline)base.build());
+				return line.getVolType();
+			}
+		} else if (obj instanceof GridModelElcBus) {
+			return ((GridModelElcBus) obj).getVolType();
+		} else if (obj instanceof GridModelTransfmwd) {
+			return ((GridModelTransfmwd) obj).getVolType();
+		} else if (obj instanceof GridModelUnit) {
+			return ((GridModelUnit) obj).getVolType();
+		} else if (obj instanceof GridModelScp) {
+			return ((GridModelScp) obj).getVolType();
+		} else if (obj instanceof GridModelCp) {
+			return ((GridModelCp) obj).getVolType();
+		} else if (obj instanceof GridModelDis) {
+			return ((GridModelDis) obj).getVolType();
+		} else if (obj instanceof GridModelBreaker) {
+			return ((GridModelBreaker) obj).getVolType();
+		} else if (obj instanceof GridModelCvt) {
+			return ((GridModelCvt) obj).getAcvolType();
+		} else if (obj instanceof GridModelTransfm) {
+			return ((GridModelTransfm) obj).getVolType();
+		}
+		return null;
+	}
+
+	@Override
+	public void readData(ObjectDataInput in) throws IOException {
+		builderList = PointValueList.parseFrom(in.readByteArray()).toBuilder();
+	}
+
+	@Override
+	public void writeData(ObjectDataOutput out) throws IOException {
+		out.writeByteArray(builderList.build().toByteArray());
+	}
+
+}

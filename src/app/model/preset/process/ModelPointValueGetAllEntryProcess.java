@@ -1,0 +1,140 @@
+package app.model.preset.process;
+/** 
+
+* @author  Donghao.F 
+
+* @date 2022 Jul 14 14:24:00 
+
+* 
+
+*/
+import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
+import java.util.Map.Entry;
+
+import com.google.protobuf.ByteString;
+import com.google.protobuf.GeneratedMessage;
+import com.google.protobuf.Message;
+import com.kedong.platform.imdg.map.EntryBackupProcessor;
+import com.kedong.platform.imdg.map.EntryProcessor;
+import com.google.protobuf.Descriptors.FieldDescriptor;
+
+import message.ServiceGridModel.GridModelResponse;
+import message.ServiceGridModel.RTKEY;
+import message.ServiceModelMeas.ModelMeasResponse;
+import message.ServiceModelMeas.RTMeas.Builder;
+import message.ServicePointValue.PointValue;
+import message.ServicePointValue.PointValueList;
+import message.ServiceRtnetCase;
+import message.ServiceRtnetCase.RtnetCaseResponse;
+import warpper.MessageWarpper;
+
+public class ModelPointValueGetAllEntryProcess implements EntryProcessor<String, Object>, Serializable {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 3213315448930528659L;
+
+	long id1;
+	long id2;
+
+	public ModelPointValueGetAllEntryProcess() {
+
+	}
+
+	public ModelPointValueGetAllEntryProcess(long id1, long id2) {
+		super();
+		this.id1 = id1;
+		this.id2 = id2;
+	}
+
+	@Override
+	public Object process(Entry<String, Object> entry) {
+		if (entry.getValue() != null) {
+			MessageWarpper warpper = (MessageWarpper) entry.getValue();
+			if (warpper != null) {
+				Message.Builder response = warpper.getBuilder();
+				if (response instanceof GridModelResponse.Builder) {
+					return mapValue(warpper);
+				} else if (response instanceof ModelMeasResponse.Builder) {
+					return mapPreValue(warpper);
+				} else if (response instanceof RtnetCaseResponse.Builder) {
+					return mapValue(warpper);
+				}
+			}
+		}
+		return null;
+	}
+
+	@Override
+	public EntryBackupProcessor<String, Object> getBackupProcessor() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	private byte[] mapValue(MessageWarpper warpper) {
+		PointValueList.Builder builder = PointValueList.newBuilder();
+		Message.Builder obj = warpper.getDeviceModelMap().get(id1 + id2);
+		if (obj == null) {
+			obj = warpper.getEqLoadModelMap().get(id1 + id2);
+		}
+		try {
+			if (obj != null) {
+				getData(obj, builder);
+			}
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
+		return builder.build().toByteArray();
+	}
+
+	private byte[] mapPreValue(MessageWarpper warpper) {
+		PointValueList.Builder builder = PointValueList.newBuilder();
+		Message.Builder base = warpper.getDeviceModelMap().get(id1 + id2);
+		if (base == null) {
+			base = warpper.getEqLoadModelMap().get(id1 + id2);
+		}
+		if (base != null) {
+			Builder obj = (Builder) base;
+			int size = obj.getAttributeNameCount();
+			for (int i = 0; i < size; i++) {
+				PointValue.Builder value = builder.addValueBuilder();
+				value.setName(obj.getAttributeName(i)).getIdBuilder().setId1(id1).setId2(id2);
+				if (obj.getValue(i).getValueType() == 1) {
+					value.setValue(getByteString(obj.getValue(i).getFloatValue()));
+				} else {
+					value.setValue(getByteString(obj.getValue(i).getIntValue()));
+				}
+			}
+		}
+		return builder.build().toByteArray();
+	}
+
+	ByteString getByteString(Object obj) {
+		return ByteString.copyFrom(String.valueOf(obj).getBytes());
+	}
+
+	private void getData(Message.Builder obj, PointValueList.Builder valueList) throws UnsupportedEncodingException {
+		obj.getAllFields().forEach((k, v) -> {
+			PointValue.Builder value = valueList.addValueBuilder();
+			value.setName(ByteString.copyFrom(k.getName().getBytes())).getIdBuilder().setId1(id1).setId2(id2);
+			if (k.getType() == FieldDescriptor.Type.BYTES) {
+				value.setValue((ByteString) v);
+			} else if (k.getType() == FieldDescriptor.Type.MESSAGE) {
+				if (v instanceof RTKEY) {
+					RTKEY key = (RTKEY) v;
+					value.setValue(ByteString
+							.copyFrom((String.valueOf(key.getId1()) + String.valueOf(key.getId2())).getBytes()));
+				}else if(v instanceof ServiceRtnetCase.RTKEY) {
+					ServiceRtnetCase.RTKEY key = (ServiceRtnetCase.RTKEY) v;
+					value.setValue(ByteString
+							.copyFrom((String.valueOf(key.getId1()) + String.valueOf(key.getId2())).getBytes()));
+				}
+			} else {
+				value.setValue(getByteString(v));
+			}
+		});
+	}
+
+}

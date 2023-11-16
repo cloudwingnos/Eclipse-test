@@ -1,0 +1,30 @@
+package jni;
+/** 
+
+* @author  Donghao.F 
+
+* @date 2020 Dec 14 12:24:00 
+
+* 
+
+*/
+import cn.sg.common.ImdgLogger;
+
+public class ReadTableJNI {
+	static {
+		try {
+			System.loadLibrary("RT");
+			ReadTableJNI.libararyExist = true;
+		} catch (UnsatisfiedLinkError e) {
+			ImdgLogger.info(e.getStackTrace());
+			ReadTableJNI.libararyExist = false;
+		}
+	}
+
+	public static boolean libararyExist;
+
+	public native static String readTable(String sys_name, String bob_name, String db_name, String tb_name);
+
+	public native static Object readTableN(String sys_name, String bob_name, String db_name, String tb_name,
+			String class_name);
+}

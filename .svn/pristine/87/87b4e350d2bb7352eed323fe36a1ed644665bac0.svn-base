@@ -1,0 +1,312 @@
+package warpper;
+/** 
+
+* @author  Donghao.F 
+
+* @date 2020 Dec 14 12:24:00 
+
+* 
+
+*/
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
+import com.google.protobuf.GeneratedMessage;
+import com.google.protobuf.Message;
+import com.kedong.platform.imdg.nio.ObjectDataInput;
+import com.kedong.platform.imdg.nio.ObjectDataOutput;
+import com.kedong.platform.imdg.nio.serialization.IdentifiedDataSerializable;
+
+import client.PlatfromClient;
+import cn.sg.common.ImdgLogger;
+import message.ServiceGridModel.GridModelResponse;
+import message.ServiceModelMeas.ModelMeasResponse;
+import message.ServiceModelMeas.RTKEY;
+import message.ServiceModelPmuMeas.ModelPmuMeasResponse;
+import message.ServiceRtnetCase.NasCaseInfo.Builder;
+import message.ServiceRtnetCase.RtnetCaseResponse;
+
+
+public class MessageWarpper  implements IdentifiedDataSerializable{
+	
+	Message.Builder builder;
+	final private static Map<String, String> map = new HashMap<String, String>();
+	byte[] byteArray;
+	static {
+		map.put("message.ServiceGridModel$GridModelResponse", "N14PowerGridModel17GridModelResponseE");
+		map.put("message.ServiceRtnetCase$RtnetCaseResponse", "N16ServiceRtnetCase17RtnetCaseResponseE");
+		map.put("message.ServiceModelMeas$ModelMeasResponse", "N7message17ModelMeasResponseE");
+		map.put("message.ServicePointValue$PointValueList", "N17ServicePointValue14PointValueListE");
+		map.put("message.Data$Configure", "N7message9ConfigureE");
+		map.put("message.TransientModel$TransientModelResponse", "N7message22TransientModelResponseE");
+		map.put("message.ServiceModelPmuMeas$ModelPmuMeasResponse", "N19ServiceModelPmuMeas20ModelPmuMeasResponseE");
+		Set<String> keySet = map.keySet().stream().collect(Collectors.toSet());
+		keySet.forEach(key->{
+			map.put(map.get(key), key);
+		});;
+		
+	}
+
+	//device map 
+	Map<Long, Message.Builder> deviceModelMap = new ConcurrentHashMap<>();
+	//EQ load map
+	Map<Long, Message.Builder> eqLoadModelMap = new ConcurrentHashMap<>();
+	
+	public MessageWarpper(GeneratedMessage response) {
+		super();
+		this.builder = response.toBuilder();
+	}
+
+	public MessageWarpper() {
+		
+	}
+	public MessageWarpper(byte[] byteArray) {
+		this.byteArray = byteArray;
+	}
+
+	private void buildObject(RtnetCaseResponse response) {
+		long time = System.currentTimeMillis();
+		this.builder = response.toBuilder();
+		Builder info = ((RtnetCaseResponse.Builder )this.builder).getCaseInfoBuilder();
+		
+		info.getCaseAcdotBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		info.getCaseAcdotBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		info.getCaseBreakBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		info.getCaseDisBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		info.getCaseDcbreakBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		info.getCaseDcdisBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		info.getCaseTrwdBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		info.getCaseLoadBuilderList().forEach(obj -> {
+			if (obj.getId().getId1() == 418) {
+				if (PlatfromClient.getCachemap().get(obj.getId().getId1() + obj.getId().getId2()) != null) {
+					eqLoadModelMap.put(PlatfromClient.getCachemap().get(obj.getId().getId1() + obj.getId().getId2()), obj);
+				}
+			}
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		info.getCaseBusBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		info.getCaseUnitBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		info.getCaseCvtBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		info.getCaseScpBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		info.getCaseCpBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		ImdgLogger.info("[Time] build result obj time(ms) :" + (System.currentTimeMillis()-time));
+	}
+
+	
+	private void buildObject(GridModelResponse response) {
+		long time = System.currentTimeMillis();
+		this.builder = response.toBuilder();
+		GridModelResponse.Builder modelBuilder = (GridModelResponse.Builder) this.builder;
+		modelBuilder.getAclnendinfoBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		modelBuilder.getAclninfoBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		modelBuilder.getElcbusinfoBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		modelBuilder.getXfwdinfoBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		modelBuilder.getLoadinfoBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+			if (obj.getId().getId1() == 418) {
+				eqLoadModelMap.put(obj.getDevId().getId1() + obj.getDevId().getId2(), obj);
+				PlatfromClient.getCachemap().put(obj.getId().getId1() + obj.getId().getId2(),
+						obj.getDevId().getId1() + obj.getDevId().getId2());
+			}
+		});
+		modelBuilder.getUnitinfoBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		modelBuilder.getCpinfoBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		modelBuilder.getScpinfoBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		modelBuilder.getCvtinfoBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		modelBuilder.getDisinfoBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		modelBuilder.getBreakinfoBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+		modelBuilder.getXfmrinfoBuilderList().forEach(obj -> {
+			deviceModelMap.put(obj.getId().getId1() + obj.getId().getId2(), obj);
+		});
+	
+		ImdgLogger.info("[Time] build model obj time(ms) :" + (System.currentTimeMillis()-time));
+	}
+	
+	
+	public Map<Long, Message.Builder> getEqLoadModelMap() {
+		return eqLoadModelMap;
+	}
+
+	public Map<Long, Message.Builder> getDeviceModelMap() {
+		return deviceModelMap;
+	}
+
+	private void buildObject(ModelMeasResponse response) {
+		long time = System.currentTimeMillis();
+		this.builder = response.toBuilder();
+		((ModelMeasResponse.Builder) this.builder).getRtMeasinfoBuilderList().forEach(meas -> {
+			RTKEY id = meas.getId();
+			deviceModelMap.put(id.getId1() + id.getId2(), meas);
+			// eqload
+			if (meas.getId().getId1() == 418) {
+				RTKEY deviceKey = meas.getDeviceId();
+				eqLoadModelMap.put(deviceKey.getId1() + deviceKey.getId2(), meas);
+			}
+		});
+		ImdgLogger.info("[Time] build meas obj time(ms) :" + (System.currentTimeMillis()-time));
+	}
+	private void buildObject(ModelPmuMeasResponse response) {//liyadi,add,20230303
+		long time = System.currentTimeMillis();
+		this.builder = response.toBuilder();
+		((ModelPmuMeasResponse.Builder) this.builder).getPmMeasinfoBuilderList().forEach(meas -> {
+			message.ServiceModelPmuMeas.RTKEY id = meas.getId();
+			deviceModelMap.put(id.getId1() + id.getId2(), meas);
+			// eqload
+			if (meas.getId().getId1() == 418) {
+				message.ServiceModelPmuMeas.RTKEY deviceKey = meas.getDeviceId();
+				eqLoadModelMap.put(deviceKey.getId1() + deviceKey.getId2(), meas);
+			}
+		});
+		ImdgLogger.info("[Time] build meas obj time(ms) :" + (System.currentTimeMillis()-time));
+	}
+	
+
+	private static String getClassName(String typeName) {
+		return map.get(typeName);
+	}
+
+	@Override
+	public void readData(ObjectDataInput in) throws IOException {
+		long time = System.currentTimeMillis();
+		String typeName = in.readUTF();
+		int size = in.readInt();
+		if (getClassName(typeName) != null) {
+			byte[] array = new byte[size];
+			in.readFully(array);
+			build(typeName, array);
+		} else {
+			System.err.println("No configure class !!************************************" + typeName);
+		}
+		ImdgLogger.info("typeName:" + typeName + ", size : " + size + ",deserialization time(ms):"
+				+ (System.currentTimeMillis() - time));
+	}
+	
+	
+	public void build(String typeName, byte[] array) {
+		try {
+			Class<?> messageClass = Class.forName(getClassName(typeName));
+			Method method = messageClass.getMethod("parseFrom", byte[].class);
+//	ImdgLogger.info("byte size:" +array.length);
+			GeneratedMessage response = (GeneratedMessage) method.invoke(null, array);
+			if (response instanceof ModelMeasResponse) {
+				buildObject((ModelMeasResponse) response);
+			} else if (response instanceof GridModelResponse) {
+				buildObject((GridModelResponse) response);
+			} else if (response instanceof RtnetCaseResponse) {
+				buildObject((RtnetCaseResponse) response);
+			} else if(response instanceof ModelPmuMeasResponse){//liaydi,add,20230303
+				buildObject((ModelPmuMeasResponse) response);
+			}
+		} catch (ClassNotFoundException | NoSuchMethodException | SecurityException | IllegalAccessException
+				| IllegalArgumentException | InvocationTargetException e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	public void writeData(ObjectDataOutput out) throws IOException {
+		GeneratedMessage response = getResponse();
+		
+		long time = System.currentTimeMillis();
+		if (response != null) {
+			String name = response.getClass().getName();
+			out.writeUTF(getClassName(name));
+			byte[] bArray = response.toByteArray();
+			out.writeInt(bArray.length);
+			out.write(bArray);
+			ImdgLogger.info("typeName:" + name + ", size : " + bArray.length + ",serialization time(ms):"
+					+ (System.currentTimeMillis() - time));
+		}else if (this.byteArray != null) {
+			String name = "byteArray";
+			out.writeUTF(name);
+			byte[] bArray = this.byteArray;
+			out.writeInt(bArray.length);
+			out.write(bArray);
+			ImdgLogger.info("typeName:" + name + ", size : " + bArray.length + ",serialization time(ms):"
+					+ (System.currentTimeMillis() - time));
+		}
+	}
+
+
+	@Override
+	public int getFactoryId() {
+		return 1000;
+	}
+
+	public static String getCClassName(Class<?>  c) {
+		return getClassName(c.getName());
+	}
+	
+	public GeneratedMessage getResponse() {
+		if (builder != null) {
+			return (GeneratedMessage) builder.build();
+		}
+		return null;
+	}
+	
+
+	public Message.Builder getBuilder() {
+		return builder;
+	}
+
+	@Override
+	public int getId() {
+		return 101;
+	}
+
+	
+
+	
+	
+}
+

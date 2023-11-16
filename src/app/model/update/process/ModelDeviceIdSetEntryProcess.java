@@ -1,0 +1,61 @@
+package app.model.update.process;
+/** 
+
+* @author  Donghao.F 
+
+* @date 2022 Jul 14 14:24:00 
+
+* 
+
+*/
+import java.util.HashSet;
+import java.util.Map.Entry;
+import java.util.Set;
+
+import com.google.protobuf.Message.Builder;
+import com.kedong.platform.imdg.map.EntryBackupProcessor;
+import com.kedong.platform.imdg.map.EntryProcessor;
+
+import cn.sg.common.ImdgLogger;
+import message.ServiceGridModel.GridModelResponse;
+import message.ServiceModelMeas.ModelMeasResponse;
+import warpper.MessageWarpper;
+
+public class ModelDeviceIdSetEntryProcess implements EntryProcessor<String, MessageWarpper>  {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 6789430176637500876L;
+
+	public ModelDeviceIdSetEntryProcess() {
+		// TODO Auto-generated constructor stub
+	}
+	
+
+	@Override
+	public EntryBackupProcessor<String, MessageWarpper> getBackupProcessor() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Object process(Entry<String, MessageWarpper> entry) {
+
+		MessageWarpper warpper = entry.getValue();
+		if (warpper != null) {
+			Builder builder = warpper.getBuilder();
+			// idSetMap updated after model update
+			Set<Long> localSet = new HashSet<Long>();
+			if (builder != null) {
+				localSet.addAll(warpper.getDeviceModelMap().keySet());
+				localSet.addAll(warpper.getEqLoadModelMap().keySet());
+			}
+			ImdgLogger.info("modelKey :" + entry.getKey() + ", device size : " + localSet.size());
+			return localSet;
+		}
+		return new HashSet<Long>();
+	}
+	
+
+}

@@ -1,0 +1,168 @@
+package app.model.update.process;
+/** 
+
+* @author  Donghao.F 
+
+* @date 2021 Mar 14 12:24:00 
+
+* 
+
+*/
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.BiFunction;
+import java.util.stream.Collectors;
+
+import com.google.protobuf.ByteString;
+import com.google.protobuf.Message;
+import com.hazelcast.map.EntryBackupProcessor;
+import com.hazelcast.map.EntryProcessor;
+import com.hazelcast.nio.ObjectDataInput;
+import com.hazelcast.nio.ObjectDataOutput;
+import com.hazelcast.nio.serialization.DataSerializable;
+
+import data.ModelUpdateData;
+import message.ServiceModelMeas.RTMeas;
+import message.ServiceModelMeas.RTMeas.Builder;
+import message.ServiceModelMeas.RTMeasValue;
+import warpper.MessageWarpper;
+
+public class ModelUpdateEntryProcess implements EntryProcessor<String, MessageWarpper> , DataSerializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 2475256447825014687L;
+	List<ModelUpdateData> dataList;
+	
+	public ModelUpdateEntryProcess() {
+		// TODO Auto-generated constructor stub
+	}
+	public ModelUpdateEntryProcess(List<ModelUpdateData> dataList) {
+		this.dataList = dataList;
+	}
+
+	@Override
+	public EntryBackupProcessor<String, MessageWarpper> getBackupProcessor() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Object process(Entry<String, MessageWarpper> entry) {
+		MessageWarpper warpper = entry.getValue();
+		if (warpper != null) {
+			List<ModelUpdateData> changeYXList = updateMes(warpper, dataList);
+			entry.setValue(warpper);
+			return changeYXList;
+		}
+		return new ArrayList<ModelUpdateData>();
+	}
+	
+	public static List<ModelUpdateData> updateMes(MessageWarpper warpper, List<ModelUpdateData> dataList) {
+		Map<Long, Message.Builder> map = warpper.getDeviceModelMap();
+		Map<Long, Message.Builder> eqloadMap = warpper.getEqLoadModelMap();
+
+		List<ModelUpdateData> changeYXList = new CopyOnWriteArrayList<ModelUpdateData>();
+		dataList.parallelStream(). forEach(data -> {
+			BiFunction<? super Long, ? super Message.Builder, ? extends Message.Builder> k = (key, meas) -> {
+				if (meas != null) {
+					mapData(data, (Builder) meas, changeYXList);
+				}
+				// 418 device will be updated by device message
+				Message.Builder base = eqloadMap.get(data.getDeviceId());
+				if (base != null) {
+					RTMeas.Builder eqLoadMeas = (Builder) base;
+					if (eqLoadMeas != null && eqLoadMeas.getId().getId1() == 418) {
+						mapData(data, eqLoadMeas, changeYXList);
+					}
+				}
+				return meas;
+			};
+			map.compute(data.getDeviceId(), k );
+			//all origin id device will be updated by message
+//			map.compute(data.getDeviceId(),( k,meas)->{
+//				
+//				if (meas != null) {
+//					mapData(data, meas, changeYXList);
+//				}
+//				//418 device will be updated by device message 
+//				RTMeas.Builder eqLoadMeas = eqloadMap.get(data.getDeviceId());
+//				if (eqLoadMeas != null && eqLoadMeas.getId().getId1() == 418) {
+//					mapData(data, eqLoadMeas, changeYXList);
+//				}
+//			});
+			
+		});
+		return changeYXList.stream().collect(Collectors.toList());
+	}
+
+	private static void mapData(ModelUpdateData data, message.ServiceModelMeas.RTMeas.Builder meas,
+			List<ModelUpdateData> changeYXList) {
+		String name = data.getAttributeName();
+		if (name != null) {
+			int size = meas.getAttributeNameCount();
+			ByteString byteStringName = ByteString.copyFrom(name.getBytes());
+			for (int i = 0; i < size; i++) {
+				if (meas.getAttributeName(i).equals(byteStringName)||attributeEquals(meas.getAttributeName(i),byteStringName)) {
+					RTMeasValue.Builder value = meas.getValueBuilder(i);
+					value.setStatus(data.getStatus());
+					if (value.getValueType() == 0) {
+						if ((int) data.getValue() != value.getIntValue()) {
+							value.setIntValue((int) data.getValue());
+							changeYXList.add(data);
+						}
+					} else {
+						// fix shunt Q or other need to be negative
+						if (value.getIntValue() == -1) {
+							value.setFloatValue(-data.getValue());
+						} else {
+							value.setFloatValue(data.getValue());
+						}
+					}
+				}
+			}
+		}
+	}
+	final static ByteString pac = ByteString.copyFrom("pac".getBytes());
+	final static ByteString qac = ByteString.copyFrom("qac".getBytes());
+	final static ByteString p = ByteString.copyFrom("p".getBytes());
+	final static ByteString q = ByteString.copyFrom("q".getBytes());
+
+	// pac -> p , qac -> q
+	private static boolean attributeEquals(ByteString attributeName, ByteString byteStringName) {
+		if (byteStringName.equals(pac) && attributeName.equals(p)) {
+			return true;
+		}
+		if (byteStringName.equals(qac) && attributeName.equals(q)) {
+			return true;
+		}
+		return false;
+	}
+	@Override
+	public void readData(ObjectDataInput in) throws IOException {
+		int size = in.readInt();
+		this.dataList = new ArrayList<ModelUpdateData>();
+		for (int i = 0; i < size; i++) {
+			ModelUpdateData data = new ModelUpdateData();
+			data.readData(in);
+			this.dataList.add(data);
+		}
+	}
+
+	@Override
+	public void writeData(ObjectDataOutput out) throws IOException {
+		out.writeInt(this.dataList.size());
+		this.dataList.forEach(data->{
+			try {
+				data.writeData(out);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		});
+	}
+
+}

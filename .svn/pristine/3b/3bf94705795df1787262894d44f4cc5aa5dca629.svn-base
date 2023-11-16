@@ -1,0 +1,228 @@
+package app.model.table.process;
+/** 
+
+* @author  Donghao.F 
+
+* @date 2021 Jul 14 14:24:00 
+
+* 
+
+*/
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Map.Entry;
+import java.util.Set;
+
+import com.google.protobuf.GeneratedMessage;
+import com.google.protobuf.Message;
+import com.kedong.platform.imdg.map.EntryBackupProcessor;
+import com.kedong.platform.imdg.map.EntryProcessor;
+import com.kedong.platform.imdg.nio.ObjectDataInput;
+import com.kedong.platform.imdg.nio.ObjectDataOutput;
+import com.kedong.platform.imdg.nio.serialization.DataSerializable;
+
+import cn.sg.common.ImdgLogger;
+import message.ServiceGridModel.GridModelResponse;
+import message.ServiceModelMeas.ModelMeasResponse;
+import message.ServiceModelMeas.RTMeas;
+import message.ServiceModelPmuMeas.ModelPmuMeasResponse;
+import message.ServiceModelPmuMeas.PMMeas;
+import message.ServiceRtnetCase.NasCaseInfo;
+import message.ServiceRtnetCase.NasCaseInfo.Builder;
+import message.ServiceRtnetCase.RtnetCaseResponse;
+import warpper.MessageWarpper;
+
+public class ModelTableProtoEntryProcess implements EntryProcessor<String, MessageWarpper>, DataSerializable {
+
+	String tableName;
+
+	Set<Long> keySet = new HashSet<Long>();
+	public ModelTableProtoEntryProcess() {
+
+	}
+
+	public ModelTableProtoEntryProcess(String tableName) {
+		this.tableName = tableName;
+	}
+
+	public ModelTableProtoEntryProcess(Set<Long> keySet) {
+		this.keySet = keySet;
+	}
+
+	@Override
+	public EntryBackupProcessor<String, MessageWarpper> getBackupProcessor() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	
+	@Override
+	public Object process(Entry<String, MessageWarpper> entry) {
+		MessageWarpper warpper = entry.getValue();
+		long time = System.currentTimeMillis();
+		byte[] array = new byte[0];
+		if (warpper != null) {
+			GeneratedMessage baseResponse = warpper.getResponse();
+			if (baseResponse instanceof GridModelResponse) {
+				GridModelResponse.Builder builder = GridModelResponse.newBuilder();
+				GridModelResponse response = (GridModelResponse) baseResponse;
+				if (tableName.equals("GridModelSubstation")) {
+					builder.addAllStinfo(response.getStinfoList());
+				} else if (tableName.equals("GridModelAcline")) {
+					builder.addAllAclninfo(response.getAclninfoList());
+				} else if (tableName.equals("GridModelAclineend")) {
+					builder.addAllAclnendinfo(response.getAclnendinfoList());
+				} else if (tableName.equals("GridModelBaseValue")) {
+					builder.addAllBasevl(response.getBasevlList());
+				} else if (tableName.equals("GridModelBreaker")) {
+					builder.addAllBreakinfo(response.getBreakinfoList());
+				} else if (tableName.equals("GridModelDis")) {
+					builder.addAllDisinfo(response.getDisinfoList());
+				} else if (tableName.equals("GridModelCp")) {
+					builder.addAllCpinfo(response.getCpinfoList());
+				} else if (tableName.equals("GridModelCvt")) {
+					builder.addAllCvtinfo(response.getCvtinfoList());
+				} else if (tableName.equals("GridModelDcDis")) {
+					builder.addAllDcdisinfo(response.getDcdisinfoList());
+				} else if (tableName.equals("GridModelDcfilter")) {
+					builder.addAllDcfilter(response.getDcfilterList());
+				} else if (tableName.equals("GridModelDclineend")) {
+					builder.addAllDclineendinfo(response.getDclineendinfoList());
+				} else if (tableName.equals("GridModelDcline")) {
+					builder.addAllDclineinfo(response.getDclineinfoList());
+				} else if (tableName.equals("GridModelDcpole")) {
+					builder.addAllDcpoleinfo(response.getDcpoleinfoList());
+				} else if (tableName.equals("GridModelDcsmoothingreactor")) {
+					builder.addAllDcsmoothingreactor(response.getDcsmoothingreactorList());
+				} else if (tableName.equals("GridModelDCWAVETRAPPER")) {
+					builder.addAllDcwavetrapper(response.getDcwavetrapperList());
+				} else if (tableName.equals("GridModelDcsys")) {
+					builder.addAllDcsysinfo(response.getDcsysinfoList());
+				} else if (tableName.equals("GridModelDcBreaker")) {
+					builder.addAllDisbrkinfo(response.getDisbrkinfoList());
+				} else if (tableName.equals("GridModelArea")) {
+					builder.addAllDivinfo(response.getDivinfoList());
+				} else if (tableName.equals("GridModelElcBus")) {
+					builder.addAllElcbusinfo(response.getElcbusinfoList());
+				} else if (tableName.equals("GridModelHVDCGroundStation")) {
+					builder.addAllHvdcgroundstation(response.getHvdcgroundstationList());
+				} else if (tableName.equals("GridModelHVDCGroundSYS")) {
+					builder.addAllHvdcgroundsys(response.getHvdcgroundsysList());
+				} else if (tableName.equals("GridModelLoad")) {
+					builder.addAllLoadinfo(response.getLoadinfoList());
+				} else if (tableName.equals("GridModelScp")) {
+					builder.addAllScpinfo(response.getScpinfoList());
+				} else if (tableName.equals("GridModelUnit")) {
+					builder.addAllUnitinfo(response.getUnitinfoList());
+				} else if (tableName.equals("GridModelTransfm")) {
+					builder.addAllXfmrinfo(response.getXfmrinfoList());
+				} else if (tableName.equals("GridModelTransfmwd")) {
+					builder.addAllXfwdinfo(response.getXfwdinfoList());
+				} else if (tableName.equals("GridModelDCGROUND")) {
+					builder.addAllDcground(response.getDcgroundList());
+				}else if(tableName.equals("GridModelDcPolesys")) {//liyadi,20230516,add
+					builder.addAllDcpolesysinfo(response.getDcpolesysinfoList());
+				}else if(tableName.equals("GridModelDisptch")) {//liyadi,20230516,add
+					builder.addAllDisptchinfo(response.getDisptchinfoList());
+				}
+				array = builder.build().toByteArray();
+			}
+
+			else if (baseResponse instanceof RtnetCaseResponse) {
+				RtnetCaseResponse.Builder builder = RtnetCaseResponse.newBuilder();
+				Builder casebuilder = builder.getCaseInfoBuilder();
+				NasCaseInfo caseinfo = ((RtnetCaseResponse) baseResponse).getCaseInfo();
+
+				if (tableName.equals("GridModelAclineend")) {
+					casebuilder.addAllCaseAcdot(caseinfo.getCaseAcdotList());
+				} else if (tableName.equals("GridModelBreaker")) {
+					casebuilder.addAllCaseBreak(caseinfo.getCaseBreakList());
+				} else if (tableName.equals("GridModelDis")) {
+					casebuilder.addAllCaseDis(caseinfo.getCaseDisList());
+				} else if (tableName.equals("GridModelCp")) {
+					casebuilder.addAllCaseCp(caseinfo.getCaseCpList());
+				} else if (tableName.equals("GridModelCvt")) {
+					casebuilder.addAllCaseCvt(caseinfo.getCaseCvtList());
+				} else if (tableName.equals("GridModelDcDis")) {
+					casebuilder.addAllCaseDcdis(caseinfo.getCaseDcdisList());
+				} else if (tableName.equals("GridModelDclineend")) {
+					casebuilder.addAllCaseDcdot(caseinfo.getCaseDcdotList());
+				} else if (tableName.equals("GridModelDcBreaker")) {
+					casebuilder.addAllCaseDcbreak(caseinfo.getCaseDcbreakList());
+				} else if (tableName.equals("GridModelElcBus")) {
+					casebuilder.addAllCaseBus(caseinfo.getCaseBusList());
+				} else if (tableName.equals("GridModelLoad")) {
+					casebuilder.addAllCaseLoad(caseinfo.getCaseLoadList());
+				} else if (tableName.equals("GridModelScp")) {
+					casebuilder.addAllCaseScp(caseinfo.getCaseScpList());
+				} else if (tableName.equals("GridModelUnit")) {
+					casebuilder.addAllCaseUnit(caseinfo.getCaseUnitList());
+				} else if (tableName.equals("GridModelTransfmwd")) {
+					casebuilder.addAllCaseTrwd(caseinfo.getCaseTrwdList());
+				}
+				array = builder.build().toByteArray();
+			}
+			else if (baseResponse instanceof ModelMeasResponse) {
+				ModelMeasResponse.Builder builder = ModelMeasResponse.newBuilder();
+				if (keySet.size() == 0) {
+					array = baseResponse.toByteArray();
+				} else {
+					keySet.forEach(k -> {
+						Message.Builder base = warpper.getDeviceModelMap().get(k);
+						if (base != null) {
+							builder.addRtMeasinfo((RTMeas.Builder) base);
+						}
+					});
+					array = builder.build().toByteArray();
+				}
+			}
+			else if (baseResponse instanceof ModelPmuMeasResponse) {//liyadi ,add ,20230303
+				ModelPmuMeasResponse.Builder builder = ModelPmuMeasResponse.newBuilder();
+				if (keySet.size() == 0) {
+					array = baseResponse.toByteArray();
+				} else {
+
+					keySet.forEach(k -> {
+						Message.Builder base = warpper.getDeviceModelMap().get(k);
+						if (base != null) {
+
+							builder.addPmMeasinfo((PMMeas.Builder) base);
+						}
+					});
+					array = builder.build().toByteArray();
+				}
+			}
+		}
+
+		ImdgLogger.info("table task time(ms)" + (System.currentTimeMillis() - time));
+		return array;
+	}
+
+	@Override
+	public void readData(ObjectDataInput in) throws IOException {
+		tableName = in.readUTF();
+		
+		int size = in.readInt();
+		if (size > 0) {
+			for (int i = 0; i < size; i++) {
+				keySet.add(in.readLong());
+			}
+		}
+	}
+
+	@Override
+	public void writeData(ObjectDataOutput out) throws IOException {
+		out.writeUTF(tableName);
+		int size = keySet.size();
+		out.writeInt(size);
+		keySet.forEach(key->{
+			try {
+				out.writeLong(key);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		});
+	}
+
+}

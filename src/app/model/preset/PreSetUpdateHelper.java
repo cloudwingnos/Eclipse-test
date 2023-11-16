@@ -1,0 +1,127 @@
+package app.model.preset;
+/** 
+
+* @author  Donghao.F 
+
+* @date 2022 Jul 14 14:24:00 
+
+* 
+
+*/
+
+import com.kedong.platform.imdg.core.KDMDGInstance;
+
+import client.PlatfromClient;
+import cn.sg.common.ImdgLogger;
+import cn.sg.model.physical.PModelContainer;
+import message.ServiceGridModel.GridModelResponse;
+import message.ServiceModelMeas.ModelMeasResponse;
+import message.ServicePointValue.PointValueList;
+import message.ServiceRtnetCase.NasCaseInfo;
+import message.ServiceRtnetCase.RtnetCaseResponse;
+
+public class PreSetUpdateHelper  {
+
+	private String key;
+
+	private PreSetValueGenerator generator;
+	
+	private PlatfromClient client;
+	
+	public PreSetUpdateHelper(String modelKey,KDMDGInstance hz) {
+		this.key = modelKey;
+		intiate(hz);
+	}
+
+	public PreSetUpdateHelper() {
+		
+	}
+	
+	public void updateResultPreSetValue() {
+		PointValueList.Builder presetValueList = PointValueList.newBuilder();
+		long time = System.currentTimeMillis();
+		GridModelResponse model = (GridModelResponse) client.getProtoBuf(key, GridModelResponse.class);
+		RtnetCaseResponse result = (RtnetCaseResponse) client.getProtoBuf(key, RtnetCaseResponse.class);
+		ModelMeasResponse rtu = (ModelMeasResponse) client.getProtoBuf(key, ModelMeasResponse.class);
+		ImdgLogger.info("[model get]  : " + (System.currentTimeMillis() - time) + "(ms)   ");
+		time = System.currentTimeMillis();
+		if (result != null) {
+			generator.mapModel(model, presetValueList);
+			NasCaseInfo info = result.getCaseInfo();
+			generator.mapResult(info, presetValueList);
+			generator.mapRtu(rtu, presetValueList, "_pre");
+		} else {
+			ImdgLogger.info("model miss : " + key);
+		}
+		ImdgLogger.info("[update key]  : " + key);
+		ImdgLogger.info("[generate time] : " + (System.currentTimeMillis() - time) + "(ms)   ");
+		ImdgLogger.info("[prto size] :" + presetValueList.getValueCount());
+		client.updatePreSetMap(key, presetValueList);
+		ImdgLogger.info("[total time] : " + (System.currentTimeMillis() - time) + "(ms)   ");
+	}
+	
+	public void updateRtuPreSetValue() {
+		PointValueList.Builder presetValueList = PointValueList.newBuilder();
+		long time = System.currentTimeMillis();
+		GridModelResponse model = (GridModelResponse) client.getProtoBuf(key, GridModelResponse.class);
+		ModelMeasResponse rtu = (ModelMeasResponse) client.getProtoBuf(key, ModelMeasResponse.class);
+		ImdgLogger.info("[model get]  : " + (System.currentTimeMillis() - time) + "(ms)   ");
+		time = System.currentTimeMillis();
+		if (rtu != null) {
+			generator.mapModel(model, presetValueList);
+			generator.mapRtu(rtu, presetValueList, "");
+			generator.mapTopoColor(model, rtu, presetValueList);
+		} else {
+			ImdgLogger.info("model miss : " + key);
+		}
+		
+		ImdgLogger.info("[update key]  : " + key);
+		ImdgLogger.info("[generate time] : " + (System.currentTimeMillis() - time) + "(ms)   ");
+		ImdgLogger.info("[prto size] :" + presetValueList.getValueCount());
+		client.updatePreSetMap(key, presetValueList);
+		ImdgLogger.info("[total time] : " + (System.currentTimeMillis() - time) + "(ms)   ");
+	}
+	
+	
+	public void updateRtuPreSetValue(GridModelResponse model,ModelMeasResponse rtu ) {
+		PointValueList.Builder presetValueList = PointValueList.newBuilder();
+		long time = System.currentTimeMillis();
+		if (rtu != null) {
+			generator.mapModel(model, presetValueList);
+			generator.mapRtu(rtu, presetValueList, "");
+		} else {
+			ImdgLogger.info("model miss : " + key);
+		}
+		ImdgLogger.info("[update key]  : " + key);
+		ImdgLogger.info("[generate time] : " + (System.currentTimeMillis() - time) + "(ms)   ");
+		ImdgLogger.info("[prto size] :" + presetValueList.getValueCount());
+		client.updatePreSetMap(key, presetValueList);
+		ImdgLogger.info("[total time] : " + (System.currentTimeMillis() - time) + "(ms)   ");
+	}
+	
+	public void updateColorPreSetValue(PModelContainer container) {
+		PointValueList.Builder presetValueList = PointValueList.newBuilder();
+		long time = System.currentTimeMillis();
+		generator.mapTopoColor(container, presetValueList);
+
+		ImdgLogger.info("[update key]  : " + key);
+		ImdgLogger.info("[generate time] : " + (System.currentTimeMillis() - time) + "(ms)   ");
+		ImdgLogger.info("[prto size] :" + presetValueList.getValueCount());
+		client.updatePreSetMap(key, presetValueList);
+		ImdgLogger.info("[total time] : " + (System.currentTimeMillis() - time) + "(ms)   ");
+	}
+	
+	public static PointValueList.Builder mapRtneResponse(PModelContainer container) {
+		long time = System.currentTimeMillis();
+		PointValueList.Builder valueList = PreSetValueGenerator.mapTopoColor(container);
+		ImdgLogger.info("[total time] : " + (System.currentTimeMillis() - time) + "(ms)   ");
+		return valueList;
+	}
+
+	private void intiate(KDMDGInstance hz) {
+		client = new PlatfromClient(hz);
+		long time = System.currentTimeMillis();
+		ImdgLogger.info("[read presetValueMap_conf time] : " + (System.currentTimeMillis() - time) + "(ms)   ");
+		this.generator = new PreSetValueGenerator(client);
+	}
+}
